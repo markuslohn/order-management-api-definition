@@ -1,0 +1,246 @@
+FORMAT: 1A
+HOST: http://localhost:8080/api
+
+# Order Management API
+
+This is a simple API build with Spring Boot and CRNK framework against an Oracle XE database. It uses the OE schema .
+
+## JSON-API
+
+It uses JSON-API specification.....
+
+## Filtering
+
+xxxxx
+
+## Security
+
+It uses Basic authentication.
+
+## Lifecycle
+
+Please call the functions in the following order.
+
+## URI Query Parameters
+
+The Mystore API does not currently support all parameters specified in the JSON API v1.0 specification. Pagination is supported on all resource listing endpoints while only a few support filtering and sorting. Refer to the resource specifications in this documentation to see what is supported.
+
+## Pagination
+
+Pagination in the Mystore API is fully compliant with the JSON API v1.0 specification and is supported by all JSON API resource listing endpoints.
+```
+Example: /orders?page[number]=2&page[size]=1
+```
+
+| Parameter    | Description                                                                                 |
+|:-------------|---------------------------------------------------------------------------------------------|
+| page[number] | which page to get resources from, default value is '1'.                                     |
+| page[size]   | how many entries that should be displayed on one page, default value and max value is '50'. |
+
+## Filtering
+
+The filter mechanism in Mystore API is heavily inspired by (but not fully compliant with) JSON API Fancy Filters [*[link]*](https://gist.github.com/e0ipso/efcc4e96ca2aed58e32948e4f70c2460). Filtering is currently only supported on the Customers, Orders, Products and a handful of other resource listing endpoints.
+
+In addition, the products endpoint have support for filtering on name and slug which are nested attributes, check the example below for details on how to use these filters.
+
+```
+Example: /orders?filter[currency][path]=currency&filter[currency][value]=NOK
+```
+```
+Example: /orders?filter[created_at][path]=created_at&filter[created_at][value]=2017-01-01 00:00:00...2017-02-01 00:00:00&filter[created_at][operator]=between
+```
+```
+Example: /products?filter[name.no][path]=name.no&filter[name.no][value]=skøyter
+```
+
+| Parameter                 | Description                                                                                                                                     |
+|:--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
+| page[attribute][path]     | **Required** This should be the same as the attribute value and indicates the path to the attribute.                                            |
+| page[attribute][value]    | **Required** The value that should be used to filter the resource.                                                                              |
+| page[attribute][operator] | The operator that should be used when filtering the resource. Supported values: `=`, `<`, `<=`, `>`, `>=`, `<>`, `between`. Default value: `=`. |
+
+## Sorting
+
+Sorting in the Mystore API is fully compliant with the JSON API v1.0 specification but is only currently available on the Customers, Orders, Products and a handful of other resource listing endpoints.
+
+In addition, the products endpoint have support for sorting on name and slug which are nested attributes, check the example below for details on how to use sorting on these attributes.
+
+```
+Example: /orders?sort=-created_at
+```
+```
+Example: /products?sort=name.se
+```
+
+| Parameter    | Description                                                                                                 |
+|:-------------|-------------------------------------------------------------------------------------------------------------|
+| sort         | Comma separated attributes with `-` prefix for descending sorting order. (e.g. `created_at,-customer_name`) |
+
+
+# Data Structures
+
+## Address (object)
+
++ street (string)
++ code (string)
++ city (string)
+
+## PersonAddress (object)
+
++ firstName (string)
++ lastName (string)
++ Include Address
+
+## CompanyAddress (object)
+
++ companyNo (string)
++ companyName (string)
++ Include Address
+
+## Get Customer (object)
+
++ data (object)
+    + id (string)
+    + type (string)
+    + attributes (object)
+        + firstName (string)
+        + lastName (string)
+    
+## Get Order (object)
+
++ data (object)
+    + id (string)
+    + type (string)
+    + attributes (object)
+        + total (number)
+        + source (string)
+        + address (PersonAddress)
+        + status (enum)
+          + NOT_ENTERED (string)
+          + ENTERED (string)
+          + PAYED (string)
+    + relationship (object)
+        + customer(Get Customer)
+        + One Of
+           + invoiceAddress(CompanyAddress)
+           + invoiceAddress(PersonAddress)
+           
+    
+    
+# Group Order Management
+
+## Customer [/customers]
+
+### List All Customers [GET]
+
++ Response 200 (application/vnd.api+json)
+
+  + Attributes (array[Get Customer])
+  
+## Order [/orders]
+
+### List All Orders [GET]
+
+| Includable Relationships                | Resource Type            |
+|:----------------------------------------|--------------------------|
+| customer                                | customers                |
+
+
++ Request A
+
+    | Includable Relationships                | Resource Type            |
+    |:----------------------------------------|--------------------------|
+    | customer                                | customers                |
+
+  + Headers
+
+            Accept: application/vnd.api+json
+
+  + Body
+  
+            {}
+
++ Response 200 (application/vnd.api+json)
+
+    + Attributes (array[Get Order])
+    
+        {
+          "data": [
+            {
+              "id": "2458",
+              "type": "order",
+              "total": 78279.6,
+              "source": "direct",
+              "status": "NOT_ENTERED",
+              "orderItems": {
+                "links": {
+                  "self": "http://localhost:8080/api/orders/2458/relationships/orderItems",
+                  "related": "http://localhost:8080/api/orders/2458/orderItems"
+                }
+              },
+              "customer": {
+                "links": {
+                  "self": "http://localhost:8080/api/orders/2458/relationships/customer",
+                  "related": "http://localhost:8080/api/orders/2458/customer"
+                }
+              },
+              "links": {
+                "self": "http://localhost:8080/api/orders/2458"
+              }
+            }
+          ]
+        }
+
++ Request B
+
+        {}
+
++ Response 200 (application/json)
+
+        {
+          "data": [
+            {
+              "id": "2458",
+              "type": "order",
+              "total": 78279.6,
+              "source": "direct",
+              "status": "NOT_ENTERED",
+              "orderItems": {
+                "links": {
+                  "self": "http://localhost:8080/api/orders/2458/relationships/orderItems",
+                  "related": "http://localhost:8080/api/orders/2458/orderItems"
+                }
+              }
+            }
+          ]
+        }
+
+### Get an Order [GET /orders/{id}]
+
++ Parameters
+      + id (string) ... Unique id of the order
+     
++ Response 200 (application/vnd.api+json)
+
+        {"data": {
+           "id": "2458",
+           "type": "order",
+           "total": 78279.6,
+           "source": "direct",
+           "status": "NOT_ENTERED",
+           "orderItems": {"links":    {
+              "self": "http://localhost:8080/api/orders/2458/relationships/orderItems",
+              "related": "http://localhost:8080/api/orders/2458/orderItems"
+           }},
+           "customer": {"links":    {
+              "self": "http://localhost:8080/api/orders/2458/relationships/customer",
+              "related": "http://localhost:8080/api/orders/2458/customer"
+           }},
+           "links": {"self": "http://localhost:8080/api/orders/2458"}
+        }}
+
+## Product [/products]
+
+### List All Products [GET]
+
++ Response 200 (application/vnd.api+json)
